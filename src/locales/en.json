@@ -1,3 +1,40 @@
 {
-  "title":"title"
+  "title": "Xiaohongshu Comment Assistant",
+  "alerts": {
+    "desc": "Send comments to the specified article"
+  },
+  "fieldListToWritten": {
+    "releaseTime": "Creation Time",
+    "uploader": "Commenter",
+    "errorTip": "Error Message"
+  },
+  "labels": {
+    "noteLink": "Link",
+    "comment": "Comment Content",
+    "cookie": "Cookie",
+    "secret": "Authorization Code"
+  },
+  "placeholder": {
+    "noteLink": "Please select the corresponding Xiaohongshu link field",
+    "comment": "Please select the corresponding comment content field",
+    "cookie": "Please enter Cookie",
+    "secret": "Please enter Authorization Code"
+  },
+  "checkFieldTip": {
+    "Number": "Field type verification failed: Should be a number type",
+    "Text": "Field type verification failed: Should be a text type",
+    "DateTime": "Field type verification failed: Should be a date type",
+    "Attachment": "Field type verification failed: Should be an attachment type"
+  },
+  "submit": "Post Comment",
+  "helpTip": "For the help guide, please check here 👉️",
+  "helpDoc": "Instruction Document",
+  "errorTip": {
+    "emptyNoteLink": "Article link address error",
+    "errorLink": "Link format error, please check the instruction document",
+    "errorLinkType": "Field type error, please set to text type or link type",
+    "errorRequest": "Cookie error or request timeout"
+  },
+  "helpDocLink": "https://jfsq6znqku.feishu.cn/wiki/AZVDwKrCUiDBUXk1nU1cgiltnKh?from=from_copylink",
+  "finishTip": "Data processing completed"
 }
