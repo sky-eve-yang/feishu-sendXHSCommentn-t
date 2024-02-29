@@ -7,18 +7,21 @@
   "fieldListToWritten": {
     "releaseTime": "创建时间",
     "uploader": "评论人",
-    "errorTip": "报错信息"
+    "errorTip": "报错信息",
+    "hookCount": "钩子触达数"
   },
   "labels": {
     "noteLink": "链接",
-    "comment": "评论内容",
+    "comment": "钩子内容",
     "cookie": "Cookie",
-    "secret": "授权码"
+    "secret": "授权码",
+    "keyword": "触发关键词"
   },
   "placeholder": {
     "noteLink": "请选择对应的小红书链接字段",
     "comment": "请选择对应的评论内容字段",
     "cookie": "请输入 Cookie",
+    "keyword": "请输入触发的关键词",
     "secret": "请输入授权码"
   },
   "checkFieldTip": {

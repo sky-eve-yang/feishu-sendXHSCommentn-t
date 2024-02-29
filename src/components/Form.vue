@@ -18,6 +18,11 @@
         <el-option v-for="meta in fieldMetaListSeView" :key="meta.id" :label="meta.name" :value="meta.id" />
       </el-select>
     </el-form-item>
+    <el-form-item :label="$t('labels.keyword')" size="large" required>
+      <el-select v-model="keywordFieldId" :placeholder="$t('placeholder.keyword')" style="width: 100%">
+        <el-option v-for="meta in fieldMetaListSeView" :key="meta.id" :label="meta.name" :value="meta.id" />
+      </el-select>
+    </el-form-item>
     <el-form-item :label="$t('labels.comment')" size="large" required>
       <el-select v-model="commentContentFieldId" :placeholder="$t('placeholder.comment')" style="width: 100%">
         <el-option v-for="meta in fieldMetaListSeView" :key="meta.id" :label="meta.name" :value="meta.id" />
@@ -29,6 +34,7 @@
     <el-form-item :label="$t('labels.secret')" size="large" required>
       <el-input v-model="secret" type="password" :placeholder="$t('placeholder.secret')"></el-input>
     </el-form-item>
+    
 
     
     <el-button v-loading="isWritingData" @click="subbmitAndWriteData" :disabled="!issubmitAbled" color="#3370ff" type="primary" plain size="large">{{ $t('submit') }}</el-button>
@@ -45,16 +51,18 @@ import qs from 'qs';
 
 // -- 数据区域
 const { t } = useI18n();
-const fieldNameListToBeWritten = ref(['releaseTime', 'uploader', 'errorTip'])
+// const fieldNameListToBeWritten = ref(['releaseTime', 'uploader', 'errorTip'])
+const fieldNameListToBeWritten = ref(['errorTip', 'hookCount'])
 const i18nFieldListBasePath = ref('fieldListToWritten')
-const i18nCheckFieldTypeBasePath = ref('fieldListToWritten')
+const i18nCheckFieldTypeBasePath = ref('checkFieldTip')
 
 const noteLinkFieldId = ref("")
 const commentContentFieldId = ref("")
-const baseUrl = ref("https://send-xh-scomment-backend-1326906378.replit.app")
-const path = ref("send_comment")
+const baseUrl = ref("https://f88dad2c-38d6-4b90-b95f-babe567b3a0a-00-2sn7y0dtbmjlt.worf.replit.dev")
+const path = ref("send_hook_comment_by_keyword")
 const cookie = ref()
 const secret = ref()
+const keywordFieldId = ref()
 const fieldMetaListSeView = ref([])
 
 
@@ -69,19 +77,22 @@ const subbmitAndWriteData = async () => {
   isWritingData.value = true
   const {table, view, tableId, viewId} = await getBaseTableAndView()
   const recordList = await getRecordListByBase(view, tableId, viewId)
-
+  console.log(1111)
   // 记录缓存
   setParamsStorage()
+  console.log(222)
   
-  const fieldIdObjectToWritten = await getfieldIdObjectToWritten(table)
-
+  const fieldIdObjectToWritten = await getFieldIdObjectToWritten(table)
+  console.log(333)
   for (let recordId of recordList) {
     // 读取笔记链接和评论内容
     console.log(4444)
 
     const noteLinkField = await table.getFieldById(noteLinkFieldId.value)
     const commentContentField = await table.getFieldById(commentContentFieldId.value)
+    const keywordField = await table.getFieldById(keywordFieldId.value)
     const noteLink = await getCellValueByRFT(recordId, noteLinkField, 'link')
+    const keyword = await getCellValueByRFT(recordId, keywordField, 'text')
     const commentContent = await getCellValueByRFT(recordId, commentContentField, 'text')
 
     // TODO: 报错审查，审查笔记链接和评论内容 - 字段格式 链接内容格式
@@ -91,21 +102,27 @@ const subbmitAndWriteData = async () => {
     if (errorRes.isError) continue
 
     // 请求后端，获取返回数据
-    const requestData = await getCommentRequestData(baseUrl.value, path.value, noteLink, commentContent, cookie.value, secret.value)
-    if (!requestData.isSuccess) {
+    // const requestData = await getCommentRequestData(baseUrl.value, path.value, noteLink, commentContent, cookie.value, secret.value, keyword)
+    const requestData = await getCommentRequestData(baseUrl.value, path.value, noteLink, commentContent, cookie.value, secret.value, keyword)  // TODO: 可以再优化，使用对象传值，但是要注意深拷贝
+    console.log(requestData)
+    if (requestData.status !== 200) {
       await table.setCellValue(
         fieldIdObjectToWritten['errorTip'], recordId, 
         [{ type: 'text', text: requestData.result.response.data.error }]
       )
       continue
     }
+    console.log(114)
     // 获取字段id和值
-    const fieldValueObjectToWritten = getfieldValueObjectToWritten(fieldNameListToBeWritten.value, requestData)
+    const fieldValueObjectToWritten = getFieldValueObjectToWritten(fieldNameListToBeWritten.value, requestData)
     const fieldIdAndValueObejctToWritten = getFieldIdAndValueObject(fieldIdObjectToWritten, fieldValueObjectToWritten)
+    console.log(118)  
     // 写入数据
     await table.setRecord(recordId, {
       fields: fieldIdAndValueObejctToWritten
     })
+    console.log(123)  
+
   }
   isWritingData.value = false
 
@@ -150,6 +167,7 @@ const handleNoteLinkError = async (noteLink, errorTipFieldId, recordId, table) =
 const setParamsStorage = () => {
   localStorage.setItem('noteLinkFieldId', noteLinkFieldId.value)   // string 类型
   localStorage.setItem('commentContentFieldId', commentContentFieldId.value)   // string 类型
+  localStorage.setItem('keywordFieldId', keywordFieldId.value)   // string 类型
   localStorage.setItem('cookie', cookie.value)   // string 类型
   localStorage.setItem('secret', secret.value)   // string 类型
 }
@@ -222,16 +240,17 @@ const getCellValueByRFT = async (recordId, field, type='text') => {
  * @param {string} cookie 小红书 Cookie
  * @param {string} secret 授权码，开通插件授权服务
  */
-const getCommentRequestData = async (baseUrl, path, noteLink, commentContent, cookie, secret) => {
+const getCommentRequestData = async (baseUrl, path, noteLink, commentContent, cookie, secret, keyword) => {
   var url = `${baseUrl}/${path}`
   let return_res;
 
-  if (path === 'send_comment') { // 进行接口归一化处理
+  if (path === 'send_hook_comment_by_keyword') { // 进行接口归一化处理
     var data = qs.stringify({
       'url': noteLink,
-      'content': commentContent,
+      'hook_content': commentContent,
       'cookie': cookie,
-      'secret': secret
+      'secret': secret,
+      'key_word': keyword
     });
 
     var config = {
@@ -243,15 +262,10 @@ const getCommentRequestData = async (baseUrl, path, noteLink, commentContent, co
       .then(function (response) {
         const res = response.data
         console.log("getCommentRequestData() >> response.data", res);
-        const commentInfo = res.info.data.comment
+        
         return_res = {
           "status": 200,
-          "data": {
-            "releaseTime": commentInfo.create_time,
-            "uploader": commentInfo.user_info.nickname,
-            "isSuccess": Boolean(res.info.success) 
-            
-          }
+          "data": res
         }
       })
       .catch(function (error) {
@@ -259,7 +273,7 @@ const getCommentRequestData = async (baseUrl, path, noteLink, commentContent, co
         return_res = error
       });
   } 
-
+  
   if (return_res.status === 200)
     return return_res.data
   else 
@@ -267,11 +281,12 @@ const getCommentRequestData = async (baseUrl, path, noteLink, commentContent, co
 }
 
 
-const getfieldIdObjectToWritten = async (table) => {
+const getFieldIdObjectToWritten = async (table) => {
 
   // 匹配已有的字段
   const existedFieldIdObjectToWritten = getExistedFieldIdObjectToWritten(fieldMetaListSeView.value, fieldNameListToBeWritten.value)
-
+  console.log(222323)
+  console.log(typeof existedFieldIdObjectToWritten)
   if (typeof existedFieldIdObjectToWritten == 'string') {// 错误处理，提示格式错误 
     await bitable.ui.showToast({
       toastType: 'warning',
@@ -282,6 +297,7 @@ const getfieldIdObjectToWritten = async (table) => {
   }
 
   // 创建缺少的字段
+  console.log(999)
   await createFields(existedFieldIdObjectToWritten, table)
   
   console.log("completeMappedFieldIdsValue() => existedFieldIdObjectToWritten", existedFieldIdObjectToWritten)
@@ -295,27 +311,33 @@ const getfieldIdObjectToWritten = async (table) => {
  */
 const getExistedFieldIdObjectToWritten = (existedFieldMetaList, fieldNameListToBeWritten) => {
   const existedFieldIdObject = {};
+  console.log(fieldNameListToBeWritten)
   for (let field of fieldNameListToBeWritten) {
+    console.log(field)
     // 查找与fieldNameListToBeWritten相匹配的existedFieldMetaList项目
     const foundField = existedFieldMetaList.find(f => f.name ===  t(`${i18nFieldListBasePath.value}.${field}`));
-
+    console.log(foundField)
     const type = getFieldToCreateType(field)
-    const checkTip = `「t${t(`${i18nFieldListBasePath.value}.${field}`)}」${t(`${i18nCheckFieldTypeBasePath}.${type}`)}`
+    console.log(type)
+    const checkTip = `「${t(`${i18nFieldListBasePath.value}.${field}`)}」${t(`${i18nCheckFieldTypeBasePath.value}.${type}`)}`
+    console.log(checkTip)
 
     if (field.endsWith('Count') && foundField && foundField.type !== 2)
       return checkTip
-    else if (field == t('selectGroup.videoInfo.uploader') && foundField && foundField.type !== 1)
+    else if (field == 'uploader' && foundField && foundField.type !== 1)
       return checkTip
-    else if (field == t('selectGroup.videoInfo.releaseTime') && foundField && foundField.type !== 5)
+    else if (field == 'releaseTime' && foundField && foundField.type !== 5)
       return checkTip
-    else if (field == t('selectGroup.videoInfo.lastUpdateTime') && foundField && foundField.type !== 5)
+    else if (field == 'lastUpdateTime' && foundField && foundField.type !== 5)
       return checkTip
     
-
+    console.log(330)
     
     // 如果找到了相应的项目，就使用其id，否则设置为-1
     existedFieldIdObject[field] = foundField ? foundField.id : -1;
+    console.log(existedFieldIdObject)
   }
+  
     
 
 
@@ -347,12 +369,15 @@ const createFields = async (fieldIdObjectToWritten, table) => {
  */
 const getFieldToCreateType = (name) => {
   const textFieldList = ['uploader', 'errorTip']
+  const numberFieldList = ['hookCount']
   const dateTimeFieldList = ['releaseTime']
 
   if (textFieldList.includes(name)) {
     return "Text"
   } else if (dateTimeFieldList.includes(name)) {
     return "DateTime"
+  } else if (numberFieldList.includes(name)) {
+    return "Number"
   }
 
   return "Text"
@@ -363,12 +388,18 @@ const getFieldToCreateType = (name) => {
  * @param {array} fieldNameListToBeWritten 需要写入数据的字段名称数组
  * @param {object} requestData 要写入的数据
  */
-const getfieldValueObjectToWritten = (fieldNameListToBeWritten, requestData) => {
+const getFieldValueObjectToWritten = (fieldNameListToBeWritten, requestData) => {
   let fieldValueObjectToWritten = {}
   for (let name of fieldNameListToBeWritten) {
+    console.log(requestData[name])
+    if(requestData[name] === 0) {
+      fieldValueObjectToWritten[name] = 0
+      continue
+    }
+      
     fieldValueObjectToWritten[name] = requestData[name] || ""
   }
-
+  console.log(fieldValueObjectToWritten)
   return fieldValueObjectToWritten
 }
 
@@ -406,6 +437,9 @@ onMounted(async () => {
   }
   if (localStorage.getItem('commentContentFieldId') !== null) {
     commentContentFieldId.value = localStorage.getItem('commentContentFieldId')
+  }
+  if (localStorage.getItem('keywordFieldId') !== null) {
+    keywordFieldId.value = localStorage.getItem('keywordFieldId')
   }
   if (localStorage.getItem('cookie') !== null) {
     cookie.value = localStorage.getItem('cookie')
