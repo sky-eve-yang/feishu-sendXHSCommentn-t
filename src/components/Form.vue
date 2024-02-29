@@ -58,7 +58,7 @@ const i18nCheckFieldTypeBasePath = ref('checkFieldTip')
 
 const noteLinkFieldId = ref("")
 const commentContentFieldId = ref("")
-const baseUrl = ref("https://f88dad2c-38d6-4b90-b95f-babe567b3a0a-00-2sn7y0dtbmjlt.worf.replit.dev")
+const baseUrl = ref("https://get-xhs-filtered-comment-by-keyword-1326906378.replit.app")
 const path = ref("send_hook_comment_by_keyword")
 const cookie = ref()
 const secret = ref()
